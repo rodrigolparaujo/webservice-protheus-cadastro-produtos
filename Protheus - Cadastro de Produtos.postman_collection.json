@@ -1,0 +1,215 @@
+{
+	"info": {
+		"_postman_id": "2e19092b-2877-4a0a-b239-40904bffb621",
+		"name": "Protheus - Cadastro de Produtos",
+		"description": "Exemplo para consultar, incluir, alterar e excluir um produto com Protheus usando Webservice",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "26232390"
+	},
+	"item": [
+		{
+			"name": "Consultar Produtos",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "P@5sWs1",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "usuariows",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/rest/Produtos/ConsultarProduto?numero=000004",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"rest",
+						"Produtos",
+						"ConsultarProduto"
+					],
+					"query": [
+						{
+							"key": "numero",
+							"value": "000004"
+						}
+					]
+				},
+				"description": "Retorno do webservice\n\n``` json\n[\n    {\n        \"codigoProduto\": \"000004\",\n        \"descricao\": \"PRODUTO 000004\",\n        \"tipo\": \"ME\",\n        \"unidadeMedida\": \"UN\",\n        \"armazemPadrao\": \"01\",\n        \"codigoNCM\": \"01012900\"\n    }\n]\n\n ```\n\nSe houver algum erro no codigo fonte do webservice, poderá ocorrer o erro:\n\n``` json\n{\"code\":500,\"detailedMessage\":\"\",\"message\":\"Internal Server Error\"}\n\n ```\n\nÉ necessário ver o console.log do appserver onde está executando o webservice para ver qual é o erro."
+			},
+			"response": []
+		},
+		{
+			"name": "Criar Produtos",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "P@5sWs1",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "usuariows",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"codigoProduto\": \"000004\",\r\n    \"descricao\": \"PRODUTO 000004\",\r\n    \"tipo\": \"ME\",\r\n    \"unidadeMedida\": \"UN\",\r\n    \"armazemPadrao\": \"01\",\r\n    \"codigoNCM\": \"01012900\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/rest/Produtos/CriarProduto",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"rest",
+						"Produtos",
+						"CriarProduto"
+					]
+				},
+				"description": "Retorno do Webservice quando sucesso\n\n``` json\n{\n    \"codigoProduto\": \"000004\",\n    \"infoMessage\": \"PRODUTO CRIADO COM SUCESSO\",\n    \"errorCode\": \"\",\n    \"errorMessage\": \"\"\n}\n\n ```\n\nExemplo de retorno do Webservice quando ocorre um erro\n\n``` json\n{\n    \"codigoProduto\": \"000003\",\n    \"infoMessage\": \"\",\n    \"errorCode\": \"500\",\n    \"errorMessage\":\"Tabela SB1 08/10/23 09:34:41\n                    Filial               - B1_FILIAL    :=   \n                    Codigo               - B1_COD       := 000003          < -- Invalido\n                    Descricao            - B1_DESC      := PRODUTO 000003                \n                    Tipo                 - B1_TIPO      := ME\n                    Unidade              - B1_UM        := UN\n                    Armazem Pad.         - B1_LOCPAD    := 01\n                    Pos.IPI/NCM          - B1_POSIPI    := 01012900  \n                    Erro   -->\" \n}\n\n ```\n\nOutro exemplo de retorno do Webservice quando ocorre um erro\n\n``` json\n{\n    \"codigoProduto\": \"000004\",\n    \"infoMessage\": \"\",\n    \"errorCode\": \"404\",\n    \"errorMessage\": \"Armazem 02 nao existe\"\n}\n\n ```"
+			},
+			"response": []
+		},
+		{
+			"name": "Alterar Produtos",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "P@5sWs1",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "usuariows",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"codigoProduto\": \"000004\",\r\n    \"descricao\": \"PRODUTO 000004\",\r\n    \"tipo\": \"ME\",\r\n    \"unidadeMedida\": \"PC\",\r\n    \"armazemPadrao\": \"01\",\r\n    \"codigoNCM\": \"00000000\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/rest/Produtos/AlterarProduto",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"rest",
+						"Produtos",
+						"AlterarProduto"
+					]
+				},
+				"description": "Retorno do Webservice quando sucesso\n\n``` json\n{\n    \"codigoProduto\": \"000004\",\n    \"infoMessage\": \"PRODUTO ALTERADO COM SUCESSO\",\n    \"errorCode\": \"\",\n    \"errorMessage\": \"\"\n}\n\n ```\n\nExemplo de retorno do Webservice quando ocorre um erro\n\n``` json\n{\n    \"codigoProduto\": \"1000004\",\n    \"infoMessage\": \"\",\n    \"errorCode\": \"404\",\n    \"errorMessage\": \"Produto nao existe\"\n}\n\n ```"
+			},
+			"response": []
+		},
+		{
+			"name": "Excluir Produtos",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "P@5sWs1",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "usuariows",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"codigoProduto\": \"000004\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/rest/Produtos/ExcluirProduto",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"rest",
+						"Produtos",
+						"ExcluirProduto"
+					]
+				},
+				"description": "Retorno do Webservice quando sucesso\n\n``` json\n{\n    \"codigoProduto\": \"000004\",\n    \"infoMessage\": \"PRODUTO EXCLUIDO COM SUCESSO\",\n    \"errorCode\": \"\",\n    \"errorMessage\": \"\"\n}\n\n ```\n\nExemplo de retorno do Webservice quando ocorre um erro\n\n``` json\n{\n    \"codigoProduto\": \"1000004\",\n    \"infoMessage\": \"\",\n    \"errorCode\": \"404\",\n    \"errorMessage\": \"Produto nao existe\"\n}\n\n ```"
+			},
+			"response": []
+		}
+	]
+}

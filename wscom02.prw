@@ -160,14 +160,6 @@ WSMETHOD POST CriarProduto WSSERVICE Produtos
 		cUOM       := PadR(oJson:GetJsonObject( 'unidadeMedida' )   ,TamSX3("B1_LOCPAD")[1])
 		cNCM       := PadR(oJson:GetJsonObject( 'codigoNCM' )       ,TamSX3("B1_POSIPI")[1])
 
-        //Verifica se o produto existe			    
-        If (Existe("SA2",1,cProduto))
-            FwLogMsg("ERROR",, "CriarProduto", "WSCOM02", "", "01", "Produto: "+ Alltrim(cProduto) +" existe!")
-            Self:SetResponse('{"codigoProduto":"'+ Alltrim(cProduto) +'", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"Produto existente na tabela" }')
-            FreeObj(oJson)
-            Return(.F.)
-        Endif
-
         //Verifica se a NCM existe			    
         If !(Existe("SYD",1,cNCM)) .and. !Empty(cNCM)
             FwLogMsg("ERROR",, "CriarProduto", "WSCOM02", "", "01", "NCM: "+ Alltrim(cNCM) +" nao existe!")
@@ -199,7 +191,7 @@ WSMETHOD POST CriarProduto WSSERVICE Produtos
 
         //Se houve erro, gera um arquivo de log dentro do diretório da protheus data
         IF lMsErroAuto
-            cArqLog  := "CriarProduto-" + Alltrim(cProduto) + "-" + StrTran(Time(), ':' , '-' )+".log"
+            cArqLog  := "CriarProduto-" + Alltrim(cProduto) + "-" + DTOS(dDataBase) + "-" + StrTran(Time(), ':' , '-' )+".log"
             aLogAuto := {}
             aLogAuto := GetAutoGrLog()
             cError := GravaLog(cArqLog,aLogAuto)
@@ -225,21 +217,15 @@ exemplo: http://localhost:3000/rest/Produtos/AlterarProduto
 WSMETHOD PUT AlterarProduto WSSERVICE Produtos
 	Local lRet      := .T.
 	Local oJson     := Nil
-    Local oItems    := Nil
 	Local cJson     := Self:GetContent()
 	Local cError    := ""
     Local cProduto   := ""
-    Local cFornLoja := ""
-    Local cFornece  := ""
-    Local cLoja     := ""
-    Local cItem     := ""
-	Local nQtde     := 0
-	Local nValor    := 0
-	Local nTotal    := 0
-    Local aCabec    := {}
-    Local aItens    := {}
-    Local aItem     := {}
-    Local i         := 0
+    Local cDescricao := ""
+    Local cTipo      := ""
+    Local cArmazem   := ""
+    Local cUOM       := ""
+    Local cNCM       := ""
+    Local aItem      := {}
 
 	Private lMsErroAuto    := .F.
 	Private lMsHelpAuto    := .T.
@@ -263,95 +249,66 @@ WSMETHOD PUT AlterarProduto WSSERVICE Produtos
         Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"Parser Json Error" }')
 		lRet    := .F.
 	Else
-        //Lendo o cabeçalho do arquivo JSON
-        cProduto  := Alltrim(oJson:GetJsonObject('noPedido'))
-        cFornLoja:= Alltrim(oJson:GetJsonObject('noFornecedor'))
-		cFornece := Left(cFornLoja,6)
-		cLoja    := Right(cFornLoja,2)
+        //Lendo o arquivo JSON
+		cProduto   := PadR(oJson:GetJsonObject( 'codigoProduto' )   ,TamSX3("B1_COD")[1])
+		cDescricao := PadR(oJson:GetJsonObject( 'descricao' )       ,TamSX3("B1_DESC")[1])
+		cTipo      := PadR(oJson:GetJsonObject( 'tipo' )            ,TamSX3("B1_TIPO")[1])
+		cArmazem   := PadR(oJson:GetJsonObject( 'armazemPadrao' )   ,TamSX3("B1_UM")[1])
+		cUOM       := PadR(oJson:GetJsonObject( 'unidadeMedida' )   ,TamSX3("B1_LOCPAD")[1])
+		cNCM       := PadR(oJson:GetJsonObject( 'codigoNCM' )       ,TamSX3("B1_POSIPI")[1])
 
-        //Verifica se o fornecedor existe			    
-        If !(Existe("SA2",1,cFornLoja))
-            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Fornecedor: "+ Alltrim(cFornLoja) +" nao existe!")
-            Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"O fornecedor '+ cFornece + " - loja " + cLoja +' nao existe" }')
+         //Verifica se o produto existe
+        If !(Existe("SB1",1,cProduto)) .and. !Empty(cNCM)
+            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Produto: "+ Alltrim(cProduto) +" nao existe!")
+            Self:SetResponse('{"codigoProduto":"'+ Alltrim(cProduto) +'", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"Produto nao existe" }')
             FreeObj(oJson)
             Return(.F.)
         Endif
 
-        //Verifica se o Cadastro de Produtos existe			    
-        dbSelectArea("SB1")
-        SB1->(dbSetOrder(1))
-        SB1->(dbGoTop())
-        If SB1->(dbSeek(xFilial("SB1") + cProduto))
-            //Monta o cabeçalho do Cadastro de Produtos apenas se houver itens
-            aadd(aCabec,{"B1_COD"       , cProduto})
-            aadd(aCabec,{"C7_EMISSAO"   , SB1->C7_EMISSAO})
-            aadd(aCabec,{"C7_FORNECE"   , cFornece})
-            aadd(aCabec,{"C7_LOJA"      , cLoja})
-            aadd(aCabec,{"C7_COND"      , SB1->C7_COND})
-            aadd(aCabec,{"C7_CONTATO"   , SB1->C7_CONTATO})
-            aadd(aCabec,{"C7_FILENT"    , SB1->C7_FILENT})
-
-            //Lendo os itens do arquivo JSON
-            oItems  := oJson:GetJsonObject('items')
-            IF ValType( oItems ) == "A"
-                For i  := 1 To Len (oItems)
-                    cItem    := oItems[i]:GetJsonObject( 'item' )
-                    cProduto := PadR(AllTrim(oItems[i]:GetJsonObject( 'produto' )),TamSX3("C7_PRODUTO")[1])
-                    nQtde    := oItems[i]:GetJsonObject( 'quantidade' )
-                    nValor   := oItems[i]:GetJsonObject( 'precoUnitario' )
-                    nTotal   := nQtde * nValor
-
-                    //Verifica se o produto existe			    
-                    If !(Existe("SB1",1,cProduto))
-                        FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Produto: "+ Alltrim(cProduto) +" nao existe!")
-                        Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"O produto '+ Alltrim(cProduto) +' nao existe" }')
-                        FreeObj(oJson)
-                        Return(.F.)
-                    Endif
-
-                    aItem:= {}
-                    aAdd(aItem,{"C7_ITEM"	, PADL(cItem,4,"0") , NIL})
-                    aAdd(aItem,{"C7_PRODUTO", cProduto		    , NIL})
-                    aAdd(aItem,{"C7_QUANT"	, nQtde		        , NIL})
-                    aAdd(aItem,{"C7_PRECO"	, nValor		    , NIL})
-                    aAdd(aItem,{"C7_TOTAL"	, nTotal		    , NIL})
-                    aAdd(aItem,{"LINPOS"    , "C7_ITEM" ,PADL(cItem,4,"0")})
-                    aadd(aItem,{"AUTDELETA"	, "N"			    , Nil})	
-                    aAdd(aItens,aItem)
-
-                Next
-
-                //Executa a inclusão automática de Cadastro de Produtos
-                FwLogMsg("INFO",, "AlterarProduto", "WSCOM02", "", "01", "MSExecAuto")
-                MSExecAuto({|a,b,c,d,e| MATA120(a,b,c,d,e)},1,aCabec,aItens,4,.F.)
-
-                //Se houve erro, gera um arquivo de log dentro do diretório da protheus data
-                IF lMsErroAuto
-                    cArqLog  := "AlterarProduto-" + cFornLoja + "-" + DTOS(dDataBase) + "-" + StrTran(Time(), ':' , '-' )+".log"
-                    aLogAuto := {}
-                    aLogAuto := GetAutoGrLog()
-                    GravaLog(cArqLog,aLogAuto)
-
-                    FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", cErro )
-                    Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"'+ Alltrim(cErro) +'" }')
-                    lRet    := .F.
-                ELSE
-                    FwLogMsg("INFO",, "AlterarProduto", "WSCOM02", "", "01", "Pedido alterado: " + cProduto)
-                    Self:SetResponse('{"codigoProduto":"'+cProduto+'", "infoMessage":"PEDIDO ALTERADO COM SUCESSO", "errorCode":"", "errorMessage":"" }')
-                EndIF
-
-            Else
-                FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Item nao informado")
-                Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"Item nao informado" }')
-                FreeObj(oJson)
-                lRet    := .F.
-            Endif 
-        Else
-            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Pedido: "+ Alltrim(cProduto) +" nao existe!")
-            Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"O Cadastro de Produtos '+ cProduto +' nao existe" }')
+         //Verifica se a NCM existe			    
+        If !(Existe("SYD",1,cNCM)) .and. !Empty(cNCM)
+            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "NCM: "+ Alltrim(cNCM) +" nao existe!")
+            Self:SetResponse('{"codigoProduto":"'+ Alltrim(cProduto) +'", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"NCM '+ Alltrim(cNCM) +' nao existe" }')
             FreeObj(oJson)
-            lRet := .F.
-        Endif               
+            Return(.F.)
+        Endif
+
+        //Verifica se o armazem existe			    
+        If !(Existe("NNR",1,cArmazem)) 
+            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", "Armazem: "+ Alltrim(cArmazem) +" nao existe!")
+            Self:SetResponse('{"codigoProduto":"'+ Alltrim(cProduto) +'", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"Armazem '+ Alltrim(cArmazem) +' nao existe" }')
+            FreeObj(oJson)
+            Return(.F.)
+        Endif
+
+        aAdd(aItem, {"B1_FILIAL"    , xFILIAL("SB1"), Nil } )
+        aAdd(aItem, {"B1_COD"	    , cProduto	    , NIL})
+        aAdd(aItem, {"B1_DESC"      , cDescricao	, NIL})
+        aAdd(aItem, {"B1_TIPO"	    , cTipo		    , NIL})
+        aAdd(aItem, {"B1_UM"	    , cUOM		    , NIL})
+        aAdd(aItem, {"B1_LOCPAD"	, cArmazem		, NIL})
+        aAdd(aItem, {"B1_POSIPI"	, cNCM		    , NIL})
+
+        //Executa a inclusão automática de Cadastro de Produtos
+        FwLogMsg("INFO",, "AlterarProduto", "WSCOM02", "", "01", "MSExecAuto")
+
+        MSExecAuto({|x,y| mata010(x,y)},aItem,4) 
+
+        //Se houve erro, gera um arquivo de log dentro do diretório da protheus data
+        IF lMsErroAuto
+            cArqLog  := "AlterarProduto-" + Alltrim(cProduto) + "-" + DTOS(dDataBase) + "-" + StrTran(Time(), ':' , '-' )+".log"
+            aLogAuto := {}
+            aLogAuto := GetAutoGrLog()
+            cError := GravaLog(cArqLog,aLogAuto)
+
+            FwLogMsg("ERROR",, "AlterarProduto", "WSCOM02", "", "01", cError )
+            Self:SetResponse('{"codigoProduto":"' + Alltrim(cProduto) + '", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"'+ Alltrim(cError) +'" }')
+            lRet    := .F.
+        ELSE
+            ConfirmSX8()
+            FwLogMsg("INFO",, "AlterarProduto", "WSCOM02", "", "01", "Produto alterado: " + cProduto)
+            Self:SetResponse('{"codigoProduto":"' + Alltrim(cProduto) + '", "infoMessage":"PRODUTO ALTERADO COM SUCESSO", "errorCode":"", "errorMessage":"" }')
+        EndIF            
     Endif
 
 	FreeObj(oJson)
@@ -366,12 +323,8 @@ WSMETHOD DELETE ExcluirProduto WSSERVICE Produtos
 	Local oJson     := Nil
 	Local cJson     := Self:GetContent()
 	Local cError    := ""
-    Local cProduto   := ""
-    Local cFornLoja := ""
-    Local cFornece  := ""
-    Local cLoja     := ""
-    Local aCabec    := {}
-    Local aItens    := {}
+    Local cProduto  := ""
+    Local aItem     := {}
 
 	Private lMsErroAuto    := .F.
 	Private lMsHelpAuto    := .T.
@@ -395,54 +348,42 @@ WSMETHOD DELETE ExcluirProduto WSSERVICE Produtos
         Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"Parser Json Error" }')
 		lRet    := .F.
 	Else
-        //Lendo o cabeçalho do arquivo JSON
-        cProduto  := Alltrim(oJson:GetJsonObject('noPedido'))
-        cFornLoja:= Alltrim(oJson:GetJsonObject('noFornecedor'))
-		cFornece := Left(cFornLoja,6)
-		cLoja    := Right(cFornLoja,2)
+        //Lendo o arquivo JSON
+		cProduto   := PadR(oJson:GetJsonObject( 'codigoProduto' )   ,TamSX3("B1_COD")[1])
 
-        //Verifica se o fornecedor existe			    
-        If !(Existe("SA2",1,cFornLoja))
-            FwLogMsg("ERROR",, "ExcluirProduto", "WSCOM02", "", "01", "Fornecedor: "+ Alltrim(cFornLoja) +" nao existe!")
-            Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"O fornecedor '+ cFornece + " - loja " + cLoja +' nao existe" }')
+         //Verifica se o produto existe
+        If !(Existe("SB1",1,cProduto)) .and. !Empty(cNCM)
+            FwLogMsg("ERROR",, "ExcluirProduto", "WSCOM02", "", "01", "Produto: "+ Alltrim(cProduto) +" nao existe!")
+            Self:SetResponse('{"codigoProduto":"'+ Alltrim(cProduto) +'", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"Produto nao existe" }')
             FreeObj(oJson)
             Return(.F.)
         Endif
 
-        //Verifica se o Cadastro de Produtos existe			    
-        dbSelectArea("SB1")
-        SB1->(dbSetOrder(1))
-        SB1->(dbGoTop())
-        If SB1->(dbSeek(xFilial("SB1") + cProduto))
-            //Monta o cabeçalho do Cadastro de Produtos apenas se houver itens
-            aadd(aCabec,{"B1_COD"       , cProduto})
-            aadd(aCabec,{"C7_FORNECE"   , cFornece})
-            aadd(aCabec,{"C7_LOJA"      , cLoja})
+        aAdd(aItem, {"B1_FILIAL"    , xFILIAL("SB1"), Nil})
+        aAdd(aItem, {"B1_COD"	    , cProduto	    , NIL})
 
-            //Executa a inclusão automática de Cadastro de Produtos
-            FwLogMsg("INFO",, "ExcluirProduto", "WSCOM02", "", "01", "MSExecAuto")
-            MSExecAuto({|a,b,c,d,e| MATA120(a,b,c,d,e)},1,aCabec,aItens,5,.F.)
+        //Executa a inclusão automática de Cadastro de Produtos
+        FwLogMsg("INFO",, "ExcluirProduto", "WSCOM02", "", "01", "MSExecAuto")
 
-            //Se houve erro, gera um arquivo de log dentro do diretório da protheus data
-            IF lMsErroAuto
-                cArqLog  := "ExcluirProduto-" + cFornLoja + "-" + DTOS(dDataBase) + "-" + StrTran(Time(), ':' , '-' )+".log"
-                aLogAuto := {}
-                aLogAuto := GetAutoGrLog()                
-                GravaLog(cArqLog,aLogAuto)
+        lMSHelpAuto := .t.
+        lMSErroAuto := .f.
+        MSExecAuto({|x,y| MATA010(x,y)},aItem,5) 
 
-                FwLogMsg("ERROR",, "ExcluirProduto", "WSCOM02", "", "01", cErro )
-                Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"'+ Alltrim(cErro) +'" }')
-                lRet    := .F.
-            ELSE
-                FwLogMsg("INFO",, "ExcluirProduto", "WSCOM02", "", "01", "Pedido Excluido: " + cProduto)
-                Self:SetResponse('{"codigoProduto":"'+cProduto+'", "infoMessage":"PEDIDO EXCLUIDO COM SUCESSO", "errorCode":"", "errorMessage":"" }')
-            EndIF
-        Else
-            FwLogMsg("ERROR",, "ExcluirProduto", "WSCOM02", "", "01", "Pedido: "+ Alltrim(cProduto) +" nao existe!")
-            Self:SetResponse('{"codigoProduto":"", "infoMessage":"", "errorCode":"404" ,  "errorMessage":"O Cadastro de Produtos '+ cProduto +' nao existe" }')
-            FreeObj(oJson)
-            lRet := .F.
-        Endif               
+        //Se houve erro, gera um arquivo de log dentro do diretório da protheus data
+        IF lMsErroAuto
+            cArqLog  := "ExcluirProduto-" + Alltrim(cProduto) + "-" + DTOS(dDataBase) + "-" + StrTran(Time(), ':' , '-' )+".log"
+            aLogAuto := {}
+            aLogAuto := GetAutoGrLog()
+            cError := GravaLog(cArqLog,aLogAuto)
+
+            FwLogMsg("ERROR",, "ExcluirProduto", "WSCOM02", "", "01", cError )
+            Self:SetResponse('{"codigoProduto":"' + Alltrim(cProduto) + '", "infoMessage":"", "errorCode":"500" ,  "errorMessage":"'+ Alltrim(cError) +'" }')
+            lRet    := .F.
+        ELSE
+            ConfirmSX8()
+            FwLogMsg("INFO",, "ExcluirProduto", "WSCOM02", "", "01", "Produto excluido: " + cProduto)
+            Self:SetResponse('{"codigoProduto":"' + Alltrim(cProduto) + '", "infoMessage":"PRODUTO EXCLUIDO COM SUCESSO", "errorCode":"", "errorMessage":"" }')
+        EndIF                
     Endif
 
 	FreeObj(oJson)
